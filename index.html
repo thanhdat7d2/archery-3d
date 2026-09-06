@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="description"
+    content="Archery Precision 3D — A Three.js alpine archery range with real 3D trees, photogrammetry foliage, walkable shooting box, live target spotting cam, and light-theme UI." />
+  <title>Archery 3D</title>
+  <link rel="stylesheet" href="./styles/main.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+        "@dgreenheck/ez-tree": "https://cdn.jsdelivr.net/npm/@dgreenheck/ez-tree@1.1.0/build/ez-tree.es.js"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <main id="app" class="app">
+    <canvas id="game-canvas" aria-label="Archery Precision 3D range canvas"></canvas>
+
+    <!-- Floating World-Projected Score Popups -->
+    <div id="popup-layer" class="popup-layer" aria-hidden="true"></div>
+
+    <!-- Stage Advance Banner -->
+    <div id="stage-toast" class="stage-toast is-hidden" role="status"></div>
+
+    <!-- Top-Left Square Live Target Spotting Camera Frame -->
+    <aside id="target-scope" class="target-scope is-hidden" aria-label="Close-up target board view">
+      <div class="target-scope__header">
+        <span class="target-scope__dot"></span>
+        <span>TARGET CAM</span>
+        <span id="scope-distance" class="target-scope__dist">25m</span>
+      </div>
+      <div class="target-scope__footer">
+        <span id="scope-last-hit" class="target-scope__hit">READY</span>
+      </div>
+    </aside>
+
+    <!-- Center Aiming Reticle & Draw Tension Ring -->
+    <div id="reticle" class="reticle is-hidden" data-state="idle" aria-hidden="true">
+      <svg class="reticle__svg" viewBox="0 0 64 64" width="68" height="68">
+        <circle class="reticle__track" cx="32" cy="32" r="26" />
+        <circle id="reticle-progress" class="reticle__progress" cx="32" cy="32" r="26" />
+        <line class="reticle__tick" x1="32" y1="12" x2="32" y2="21" />
+        <line class="reticle__tick" x1="32" y1="43" x2="32" y2="52" />
+        <line class="reticle__tick" x1="12" y1="32" x2="21" y2="32" />
+        <line class="reticle__tick" x1="43" y1="32" x2="52" y2="32" />
+        <circle class="reticle__dot" cx="32" cy="32" r="2.2" />
+      </svg>
+    </div>
+
+    <!-- Bottom Controls Hint (kept clear of center sightline) -->
+    <div id="reticle-hint" class="reticle__hint is-hidden" aria-hidden="true">
+      Hold Click / Space to Draw • Release to Shoot • WASD to Walk
+    </div>
+
+    <!-- Top Light-Glass HUD -->
+    <header id="hud" class="hud is-hidden" aria-live="polite">
+      <div class="hud__left">
+        <div class="hud-pill">
+          <span class="hud-pill__label">RANGE</span>
+          <span id="hud-distance" class="hud-pill__value">25m</span>
+        </div>
+        <div class="hud-pill">
+          <span class="hud-pill__label">ARROWS</span>
+          <span id="hud-arrows" class="hud-pill__value">12</span>
+        </div>
+        <div id="hud-round-timer-chip" class="hud-pill is-hidden">
+          <span class="hud-pill__label">TIME</span>
+          <span id="hud-round-timer" class="hud-pill__value">60s</span>
+        </div>
+      </div>
+
+      <div class="hud__center">
+        <div class="score-banner">
+          <div id="hud-score" class="score-banner__value">0</div>
+          <div class="score-banner__meta">
+            <span>BEST <strong id="hud-best">0</strong></span>
+            <span id="hud-streak" class="streak-chip is-hidden"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud__right">
+        <div class="wind-widget" title="Crosswind direction & speed">
+          <div class="wind-compass" aria-hidden="true">
+            <span id="wind-needle" class="wind-compass__needle">➜</span>
+          </div>
+          <div class="wind-meta">
+            <span id="wind-dir-label" class="wind-meta__label">CALM</span>
+            <span id="wind-speed" class="wind-meta__speed">0.0 m/s</span>
+          </div>
+        </div>
+        <button id="btn-mute" class="icon-btn" type="button" aria-label="Mute audio" title="Mute (M)">🔊</button>
+        <button id="btn-pause" class="icon-btn" type="button" aria-label="Pause game" title="Pause (P)">⏸</button>
+      </div>
+    </header>
+
+    <!-- Start Menu Overlay -->
+    <section id="menu-overlay" class="overlay" aria-labelledby="menu-title">
+      <div class="panel panel--menu">
+        <div class="brand-badge">THREE.JS 3D ALPINE RANGE</div>
+        <h1 id="menu-title" class="panel__title">Archery <span>Precision</span></h1>
+        <p class="panel__subtitle">
+          Explore 6 photorealistic 3D worlds, walk the range, and target Olympic boards, animated 3D foxes, soldiers
+          &amp; robots.
+        </p>
+
+        <div class="selector-block">
+          <div class="selector-block__label">WORLD ENVIRONMENT</div>
+          <div id="world-grid" class="pill-row" role="radiogroup" aria-label="Select 3D world"></div>
+        </div>
+
+        <div class="selector-block">
+          <div class="selector-block__label">TARGET TYPE</div>
+          <div id="target-grid" class="pill-row" role="radiogroup" aria-label="Select target type"></div>
+        </div>
+
+        <div class="selector-block">
+          <div class="selector-block__label">GAME MODE</div>
+          <div id="mode-grid" class="mode-grid" role="radiogroup" aria-label="Select game mode"></div>
+        </div>
+
+        <button id="btn-play" class="btn btn--primary btn--lg" type="button">Enter the Range</button>
+
+        <footer class="controls-bar">
+          <span><kbd>WASD</kbd> Walk Range</span>
+          <span><kbd>Move</kbd> Aim</span>
+          <span><kbd>Hold Click</kbd> / <kbd>Space</kbd> Draw &amp; Release</span>
+          <span><kbd>P</kbd> Pause</span>
+        </footer>
+      </div>
+    </section>
+
+    <!-- Pause Overlay -->
+    <section id="pause-overlay" class="overlay is-hidden" aria-labelledby="pause-title">
+      <div class="panel panel--compact">
+        <div class="brand-badge">MATCH PAUSED</div>
+        <h2 id="pause-title" class="panel__title">Take a Breath</h2>
+        <div class="btn-stack">
+          <button id="btn-resume" class="btn btn--primary" type="button">Resume Match</button>
+          <button id="btn-restart-pause" class="btn btn--secondary" type="button">Restart Range</button>
+          <button id="btn-menu-pause" class="btn btn--ghost" type="button">Main Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Game Over Summary Overlay -->
+    <section id="gameover-overlay" class="overlay is-hidden" aria-labelledby="gameover-title">
+      <div class="panel panel--summary">
+        <span id="gameover-new-best" class="badge-gold is-hidden">NEW PERSONAL BEST</span>
+        <h2 id="gameover-title" class="panel__title">Round Complete</h2>
+
+        <div class="final-score-card">
+          <span class="final-score-card__label">FINAL SCORE</span>
+          <span id="gameover-score" class="final-score-card__value">0</span>
+        </div>
+
+        <dl class="stats-grid">
+          <div class="stat-tile">
+            <dt>Best</dt>
+            <dd id="gameover-best">0</dd>
+          </div>
+          <div class="stat-tile">
+            <dt>Accuracy</dt>
+            <dd id="gameover-accuracy">0%</dd>
+          </div>
+          <div class="stat-tile">
+            <dt>Avg Ring</dt>
+            <dd id="gameover-avgring">0.0</dd>
+          </div>
+          <div class="stat-tile">
+            <dt>Bullseyes</dt>
+            <dd id="gameover-bullseyes">0</dd>
+          </div>
+          <div class="stat-tile stat-tile--wide">
+            <dt>Longest Hit Streak</dt>
+            <dd id="gameover-streak">0</dd>
+          </div>
+        </dl>
+
+        <div class="btn-stack">
+          <button id="btn-replay" class="btn btn--primary" type="button">Shoot Again</button>
+          <button id="btn-menu-over" class="btn btn--ghost" type="button">Change Mode</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>
