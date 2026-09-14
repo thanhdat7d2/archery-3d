@@ -179,4 +179,31 @@ describe('GameEngine (3D Range)', () => {
     assert.ok(Math.abs(engine.aimYaw) > 2.1, 'expected wide panoramic horizontal look angle');
     assert.ok(engine.aimPitch > 0.65, 'expected wide vertical look angle');
   });
+
+  it('launches arrows collinearly with the camera aim ray from playerPos', () => {
+    const { engine } = createEngine();
+    engine.startGame('championship');
+    engine.playerPos = { x: 1.5, y: PHYSICS.BOW_POS.y, z: -2.0 };
+    engine.aimYaw = 0.25;
+    engine.aimPitch = 0.12;
+    engine.swayYaw = 0;
+    engine.swayPitch = 0;
+
+    engine.beginDraw();
+    engine.drawPower = 1;
+    const arrow = engine.releaseDraw();
+
+    assert.ok(arrow);
+    assert.equal(arrow.x, engine.playerPos.x);
+    assert.equal(arrow.y, engine.playerPos.y);
+    assert.equal(arrow.z, engine.playerPos.z);
+
+    const dir = arrow.getDirection();
+    const expectedX = -Math.sin(0.25) * Math.cos(0.12);
+    const expectedY = Math.sin(0.12);
+    const expectedZ = -Math.cos(0.25) * Math.cos(0.12);
+    assert.ok(Math.abs(dir.x - expectedX) < 1e-6);
+    assert.ok(Math.abs(dir.y - expectedY) < 1e-6);
+    assert.ok(Math.abs(dir.z - expectedZ) < 1e-6);
+  });
 });

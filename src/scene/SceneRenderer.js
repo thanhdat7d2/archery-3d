@@ -24,7 +24,7 @@ export class SceneRenderer {
     this.scene.fog = new THREE.FogExp2(0xcfe4f7, 0.0036);
 
     this.camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 450);
-    this.camera.position.set(0, PHYSICS.BOW_POS.y + 0.12, 0.45);
+    this.camera.position.set(0, PHYSICS.BOW_POS.y, 0);
 
     this.targetScopeCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 40);
 
@@ -280,8 +280,8 @@ export class SceneRenderer {
 
     this.camera.position.set(
       engine.playerPos.x + bobX,
-      engine.playerPos.y + 0.1 + bobY,
-      engine.playerPos.z + 0.35 + recoilKick
+      engine.playerPos.y + bobY,
+      engine.playerPos.z + recoilKick
     );
 
     this.camera.rotation.order = 'YXZ';
@@ -295,9 +295,9 @@ export class SceneRenderer {
       (engine.mode.infiniteArrows || engine.flyingArrows.length === 0);
 
     this.bowRig.group.position.set(
-      0.29 - engine.drawPower * 0.06,
-      -0.19 + engine.drawPower * 0.03,
-      -0.76 + engine.drawPower * 0.09
+      0.26 - engine.drawPower * 0.12,
+      -0.18 + engine.drawPower * 0.06,
+      -0.76 + engine.drawPower * 0.12
     );
     this.bowRig.group.rotation.z = 0.08 - engine.drawPower * 0.04;
     this.bowRig.updateDraw(engine.drawPower, engine.releaseRecoil, showNocked);
@@ -352,7 +352,7 @@ export class SceneRenderer {
         this.scene.add(mesh);
 
         trail = {
-          points: [],
+          points: [new THREE.Vector3(arrow.prevX, arrow.prevY, arrow.prevZ)],
           mesh,
           material: mat,
           fading: false,
