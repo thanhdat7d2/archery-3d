@@ -10,6 +10,7 @@ export class StorageService {
    */
   constructor(storage = null) {
     this._memory = new Map();
+    this._cache = new Map();
     this._storage = storage ?? this._detectLocalStorage();
   }
 
@@ -28,18 +29,31 @@ export class StorageService {
   }
 
   _readJSON(key, fallback) {
+    if (this._cache.has(key)) {
+      return { ...this._cache.get(key) };
+    }
     try {
       const raw = this._storage ? this._storage.getItem(key) : this._memory.get(key);
-      if (!raw) return fallback;
-      return JSON.parse(raw);
+      if (!raw) {
+        this._cache.set(key, fallback);
+        return { ...fallback };
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        this._cache.set(key, parsed);
+        return { ...parsed };
+      }
+      return { ...fallback };
     } catch {
-      return fallback;
+      return { ...fallback };
     }
   }
 
   _writeJSON(key, value) {
+    const copy = { ...value };
+    this._cache.set(key, copy);
     try {
-      const serialized = JSON.stringify(value);
+      const serialized = JSON.stringify(copy);
       if (this._storage) {
         this._storage.setItem(key, serialized);
       } else {

@@ -106,6 +106,9 @@ export class GameEngine {
     if (!GAME_MODES[modeId]) return;
     this.mode = GAME_MODES[modeId];
     this.storage.saveSettings({ selectedMode: modeId });
+    if (this.state === GAME_STATES.MENU) {
+      this._configureStage(0);
+    }
   }
 
   /**
@@ -120,7 +123,7 @@ export class GameEngine {
   }
 
   /**
-   * Switch the active target type preference (`mixed`, `board`, `stag`, `soldier`, `drone`).
+   * Switch the active target type preference (`mixed`, `board`, `fox`, `soldier`, `robot`).
    * @param {string} targetTypeId
    */
   setTargetType(targetTypeId) {
@@ -252,6 +255,7 @@ export class GameEngine {
 
   beginDraw() {
     if (this.state !== GAME_STATES.PLAYING) return;
+    if (this.mode.roundDuration !== null && this.roundTimeRemaining <= 0) return;
     if (!this.mode.infiniteArrows && this.arrowsLeft <= 0) return;
     if (!this.mode.infiniteArrows && this.flyingArrows.length > 0) return;
 

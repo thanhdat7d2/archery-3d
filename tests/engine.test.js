@@ -206,4 +206,16 @@ describe('GameEngine (3D Range)', () => {
     assert.ok(Math.abs(dir.y - expectedY) < 1e-6);
     assert.ok(Math.abs(dir.z - expectedZ) < 1e-6);
   });
+
+  it('updates menu target preview on setMode() and blocks drawing after Time Attack expires', () => {
+    const { engine } = createEngine();
+    engine.setMode('windMaster');
+    assert.equal(engine.target.distance, 55);
+    assert.equal(engine.target.isMoving, true);
+
+    engine.startGame('timeAttack');
+    engine.roundTimeRemaining = 0;
+    engine.beginDraw();
+    assert.equal(engine.isDrawing, false);
+  });
 });
