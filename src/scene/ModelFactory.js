@@ -298,77 +298,10 @@ export class ModelFactory {
     return { group, updateDraw };
   }
 
-  /**
-   * Create a detailed tournament 3D carbon arrow pointing downrange along -Z.
-   * Features carbon shaft, gold/blue cresting bands, brass insert collar,
-   * steel field point, molded orange nock, and 3 sculpted parabolic vanes.
-   */
-  static createArrow() {
-    const group = new THREE.Group();
+  static _getArrowAssets() {
+    if (ModelFactory._arrowAssets) return ModelFactory._arrowAssets;
+
     const shaftLength = 0.84;
-
-    // 1. Sleek matte-carbon main shaft (z = -0.025 to -(shaftLength + 0.025))
-    const shaftMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      roughness: 0.24,
-      metalness: 0.55,
-    });
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.0068, 0.0074, shaftLength, 12),
-      shaftMat
-    );
-    shaft.rotation.x = Math.PI / 2;
-    shaft.position.z = -shaftLength / 2 - 0.02;
-    shaft.castShadow = true;
-    group.add(shaft);
-
-    // 2. Decorative tournament cresting wrap near the fletching
-    const wrapMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 });
-    const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.0076, 0.0076, 0.14, 12), wrapMat);
-    wrap.rotation.x = Math.PI / 2;
-    wrap.position.z = -0.105;
-    group.add(wrap);
-
-    const accentBandMat = new THREE.MeshStandardMaterial({
-      color: 0xd97706,
-      metalness: 0.78,
-      roughness: 0.25,
-    });
-    for (const bz of [-0.038, -0.172]) {
-      const band = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0079, 0.0079, 0.012, 12),
-        accentBandMat
-      );
-      band.rotation.x = Math.PI / 2;
-      band.position.z = bz;
-      group.add(band);
-    }
-
-    // 3. Molded bright-orange rear nock seamlessly fitted to shaft rear (z = 0)
-    const nockMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 });
-    const nock = new THREE.Mesh(new THREE.CylinderGeometry(0.0072, 0.006, 0.028, 10), nockMat);
-    nock.rotation.x = Math.PI / 2;
-    nock.position.z = -0.012;
-    group.add(nock);
-
-    // 4. Brass front insert collar + tapered stainless-steel target point
-    const ferrule = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.0082, 0.0074, 0.024, 12),
-      accentBandMat
-    );
-    ferrule.rotation.x = Math.PI / 2;
-    ferrule.position.z = -shaftLength - 0.026;
-    group.add(ferrule);
-
-    const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.0115, 0.068, 12),
-      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.14 })
-    );
-    tip.rotation.x = -Math.PI / 2;
-    tip.position.z = -shaftLength - 0.07;
-    group.add(tip);
-
-    // 5. Three 3D extruded parabolic fletching vanes mounted flush on the cresting wrap
     const vaneShape = new THREE.Shape();
     vaneShape.moveTo(0, 0);
     vaneShape.lineTo(0.115, 0);
@@ -382,11 +315,76 @@ export class ModelFactory {
     vaneGeo.translate(0, 0, -0.0009);
     vaneGeo.rotateY(Math.PI / 2);
 
-    const redVaneMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.45 });
-    const whiteVaneMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 });
+    ModelFactory._arrowAssets = {
+      shaftLength,
+      shaftGeo: new THREE.CylinderGeometry(0.0068, 0.0074, shaftLength, 12),
+      wrapGeo: new THREE.CylinderGeometry(0.0076, 0.0076, 0.14, 12),
+      bandGeo: new THREE.CylinderGeometry(0.0079, 0.0079, 0.012, 12),
+      nockGeo: new THREE.CylinderGeometry(0.0072, 0.006, 0.028, 10),
+      ferruleGeo: new THREE.CylinderGeometry(0.0082, 0.0074, 0.024, 12),
+      tipGeo: new THREE.ConeGeometry(0.0115, 0.068, 12),
+      vaneGeo,
+      shaftMat: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.24, metalness: 0.55 }),
+      wrapMat: new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 }),
+      accentBandMat: new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.78, roughness: 0.25 }),
+      nockMat: new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 }),
+      tipMat: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.14 }),
+      redVaneMat: new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.45 }),
+      whiteVaneMat: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 }),
+    };
+    return ModelFactory._arrowAssets;
+  }
 
+  /**
+   * Create a detailed tournament 3D carbon arrow pointing downrange along -Z.
+   * Features carbon shaft, gold/blue cresting bands, brass insert collar,
+   * steel field point, molded orange nock, and 3 sculpted parabolic vanes.
+   */
+  static createArrow() {
+    const group = new THREE.Group();
+    const assets = ModelFactory._getArrowAssets();
+    const { shaftLength } = assets;
+
+    // 1. Sleek matte-carbon main shaft (z = -0.025 to -(shaftLength + 0.025))
+    const shaft = new THREE.Mesh(assets.shaftGeo, assets.shaftMat);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.z = -shaftLength / 2 - 0.02;
+    shaft.castShadow = true;
+    group.add(shaft);
+
+    // 2. Decorative tournament cresting wrap near the fletching
+    const wrap = new THREE.Mesh(assets.wrapGeo, assets.wrapMat);
+    wrap.rotation.x = Math.PI / 2;
+    wrap.position.z = -0.105;
+    group.add(wrap);
+
+    for (const bz of [-0.038, -0.172]) {
+      const band = new THREE.Mesh(assets.bandGeo, assets.accentBandMat);
+      band.rotation.x = Math.PI / 2;
+      band.position.z = bz;
+      group.add(band);
+    }
+
+    // 3. Molded bright-orange rear nock seamlessly fitted to shaft rear (z = 0)
+    const nock = new THREE.Mesh(assets.nockGeo, assets.nockMat);
+    nock.rotation.x = Math.PI / 2;
+    nock.position.z = -0.012;
+    group.add(nock);
+
+    // 4. Brass front insert collar + tapered stainless-steel target point
+    const ferrule = new THREE.Mesh(assets.ferruleGeo, assets.accentBandMat);
+    ferrule.rotation.x = Math.PI / 2;
+    ferrule.position.z = -shaftLength - 0.026;
+    group.add(ferrule);
+
+    const tip = new THREE.Mesh(assets.tipGeo, assets.tipMat);
+    tip.rotation.x = -Math.PI / 2;
+    tip.position.z = -shaftLength - 0.07;
+    group.add(tip);
+
+    // 5. Three 3D extruded parabolic fletching vanes mounted flush on the cresting wrap
     for (let i = 0; i < 3; i++) {
-      const vane = new THREE.Mesh(vaneGeo, i === 0 ? whiteVaneMat : redVaneMat);
+      const vane = new THREE.Mesh(assets.vaneGeo, i === 0 ? assets.whiteVaneMat : assets.redVaneMat);
       const angle = (i * Math.PI * 2) / 3;
       vane.position.set(Math.sin(angle) * 0.006, Math.cos(angle) * 0.006, -0.048);
       vane.rotation.z = -angle;
@@ -428,8 +426,11 @@ export class ModelFactory {
     let moveAction = null;
     let activeIsMoving = null;
     let loadedModel = null;
+    let disposed = false;
+    const railMesh = ModelFactory._createRailMesh();
 
     gltfLoader.load(spec.path, (gltf) => {
+      if (disposed) return;
       const model = gltf.scene;
       model.traverse((node) => {
         if (node.isMesh) {
@@ -492,7 +493,14 @@ export class ModelFactory {
       }
     };
 
-    return { group: root, bossGroup, railMesh: ModelFactory._createRailMesh(), setRadius, animate };
+    const dispose = () => {
+      disposed = true;
+      if (mixer) mixer.stopAllAction();
+      railMesh.geometry.dispose();
+      railMesh.material.dispose();
+    };
+
+    return { group: root, bossGroup, railMesh, setRadius, animate, dispose };
   }
 
   static _createBoardTarget(radius, { woodMaterial = null }) {
@@ -546,9 +554,21 @@ export class ModelFactory {
     }
 
     root.add(bossGroup);
+    const railMesh = ModelFactory._createRailMesh();
     const setRadius = (r) => bossMesh.scale.set(r, 1, r);
     setRadius(radius);
 
-    return { group: root, bossGroup, railMesh: ModelFactory._createRailMesh(), setRadius, animate: () => {} };
+    const dispose = () => {
+      bossMesh.geometry.dispose();
+      legGeo.dispose();
+      faceTex.dispose();
+      strawMat.dispose();
+      faceMat.dispose();
+      if (!woodMaterial) standWood.dispose();
+      railMesh.geometry.dispose();
+      railMesh.material.dispose();
+    };
+
+    return { group: root, bossGroup, railMesh, setRadius, animate: () => {}, dispose };
   }
 }

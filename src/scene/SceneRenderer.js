@@ -48,8 +48,9 @@ export class SceneRenderer {
     this._arrowTrails = new Map();
     /** @type {Array<{ mesh: THREE.Mesh, material: THREE.MeshBasicMaterial, life: number, maxLife: number }>} */
     this._hitRings = [];
-    /** @type {Array<{mesh: THREE.Mesh, vx: number, vy: number, vz: number, life: number, maxLife: number}>} */
+    /** @type {Array<{mesh: THREE.Mesh, vx: number, vy: number, vz: number, life: number, maxLife: number, burst: { mat: THREE.MeshStandardMaterial, remaining: number }}>} */
     this._particles = [];
+    this._particleGeo = new THREE.SphereGeometry(0.035, 6, 6);
 
     this.lights = this._setupLighting();
 
@@ -96,6 +97,7 @@ export class SceneRenderer {
     if (this.targetRig) {
       this.scene.remove(this.targetRig.group);
       this.scene.remove(this.targetRig.railMesh);
+      this.targetRig.dispose?.();
     }
     this._activeTargetType = type;
     this.targetRig = ModelFactory.createTargetRig(
@@ -304,16 +306,16 @@ export class SceneRenderer {
   }
 
   _spawnImpactParticles(worldPos, colorHex, count) {
-    const geo = new THREE.SphereGeometry(0.035, 6, 6);
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(colorHex),
       roughness: 0.35,
       emissive: new THREE.Color(colorHex),
       emissiveIntensity: 0.3,
     });
+    const burst = { mat, remaining: count };
 
     for (let i = 0; i < count; i++) {
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(this._particleGeo, mat);
       mesh.position.set(worldPos.x, worldPos.y, worldPos.z + 0.1);
       this.scene.add(mesh);
 
@@ -327,6 +329,7 @@ export class SceneRenderer {
         vz: 1.5 + Math.random() * 3.0,
         life: maxLife,
         maxLife,
+        burst,
       });
     }
   }
@@ -485,6 +488,10 @@ export class SceneRenderer {
       p.life -= dt;
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
+        p.burst.remaining -= 1;
+        if (p.burst.remaining <= 0) {
+          p.burst.mat.dispose();
+        }
         this._particles.splice(i, 1);
         continue;
       }
@@ -495,5 +502,36 @@ export class SceneRenderer {
       const scale = Math.max(0.01, p.life / p.maxLife);
       p.mesh.scale.setScalar(scale);
     }
+  }
+
+  dispose() {
+    for (const trail of this._arrowTrails.values()) {
+      this.scene.remove(trail.mesh);
+      trail.mesh.geometry.dispose();
+      trail.material.dispose();
+    }
+    this._arrowTrails.clear();
+
+    for (const ring of this._hitRings) {
+      this.scene.remove(ring.mesh);
+      ring.mesh.geometry.dispose();
+      ring.material.dispose();
+    }
+    this._hitRings.length = 0;
+
+    for (const p of this._particles) {
+      this.scene.remove(p.mesh);
+      p.burst.remaining -= 1;
+      if (p.burst.remaining <= 0) {
+        p.burst.mat.dispose();
+      }
+    }
+    this._particles.length = 0;
+    this._particleGeo.dispose();
+
+    if (this.targetRig) {
+      this.targetRig.dispose?.();
+    }
+    this.renderer.dispose();
   }
 }

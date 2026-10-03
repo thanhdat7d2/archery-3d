@@ -39,6 +39,7 @@ export class LandscapeBuilder {
     this._envCache = new Map();
     this._treeArchetypes = null;
     this._gltfCache = new Map();
+    this._worldDisposables = [];
   }
 
   build(initialWorld = 'alpine') {
@@ -69,6 +70,10 @@ export class LandscapeBuilder {
     while (this.worldGroup.children.length > 0) {
       this.worldGroup.remove(this.worldGroup.children[0]);
     }
+    for (const resource of this._worldDisposables) {
+      resource.dispose();
+    }
+    this._worldDisposables = [];
     this._worldAnimators = [];
     this.windFlagPivot = null;
     this.windFlagCloth = null;
@@ -186,6 +191,7 @@ export class LandscapeBuilder {
     terrain.position.z = -55;
     terrain.receiveShadow = true;
     this.worldGroup.add(terrain);
+    this._worldDisposables.push(geo);
   }
 
   _getTreeArchetypes() {
