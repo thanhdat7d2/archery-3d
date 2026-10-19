@@ -21,6 +21,7 @@ export class InputManager {
 
     /** @type {Set<string>} */
     this._pressedKeys = new Set();
+    this._activePointerId = null;
 
     this._onPointerMove = this._handlePointerMove.bind(this);
     this._onPointerDown = this._handlePointerDown.bind(this);
@@ -77,11 +78,36 @@ export class InputManager {
     if (event.button !== 0 && event.pointerType === 'mouse') return;
     this.audio.unlock();
     if (this.engine.state !== GAME_STATES.PLAYING) return;
+    this._activePointerId = event.pointerId ?? null;
+    if (this._activePointerId !== null) {
+      try {
+        this.canvas.setPointerCapture?.(this._activePointerId);
+      } catch {
+        // Ignore if pointer capture is unsupported or pointer is inactive
+      }
+    }
     this._updateAimFromPointer(event);
     this.engine.beginDraw();
   }
 
-  _handlePointerUp() {
+  _handlePointerUp(event) {
+    if (
+      this._activePointerId !== null &&
+      event?.pointerId !== undefined &&
+      event.pointerId !== this._activePointerId
+    ) {
+      return;
+    }
+    if (this._activePointerId !== null) {
+      try {
+        if (this.canvas.hasPointerCapture?.(this._activePointerId)) {
+          this.canvas.releasePointerCapture(this._activePointerId);
+        }
+      } catch {
+        // Ignore release errors
+      }
+      this._activePointerId = null;
+    }
     if (this.engine.isDrawing) {
       this.engine.releaseDraw();
     }
@@ -141,6 +167,7 @@ export class InputManager {
 
   _handleBlur() {
     this._pressedKeys.clear();
+    this._activePointerId = null;
     this._syncMoveAxes();
     if (this.engine.state === GAME_STATES.PLAYING) {
       this.engine.togglePause();
