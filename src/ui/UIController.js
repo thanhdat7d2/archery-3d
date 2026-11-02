@@ -78,6 +78,7 @@ export class UIController {
     };
 
     this._toastTimer = null;
+    this._lastHud = {};
 
     this._renderWorldPills();
     this._renderTargetPills();
@@ -91,15 +92,20 @@ export class UIController {
   _renderWorldPills() {
     this.els.worldGrid.innerHTML = '';
     for (const world of Object.values(ENVIRONMENTS)) {
+      const isSelected = world.id === this.engine.worldId;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `select-pill${world.id === this.engine.worldId ? ' is-selected' : ''}`;
+      btn.className = `select-pill${isSelected ? ' is-selected' : ''}`;
       btn.dataset.worldId = world.id;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(isSelected));
       btn.innerHTML = `<span class="select-pill__dot" style="background:${world.accent}"></span>${world.label}`;
       btn.addEventListener('click', () => {
         this.engine.setWorld(world.id);
         this.els.worldGrid.querySelectorAll('.select-pill').forEach((el) => {
-          el.classList.toggle('is-selected', el.dataset.worldId === world.id);
+          const selected = el.dataset.worldId === world.id;
+          el.classList.toggle('is-selected', selected);
+          el.setAttribute('aria-checked', String(selected));
         });
       });
       this.els.worldGrid.appendChild(btn);
@@ -109,15 +115,20 @@ export class UIController {
   _renderTargetPills() {
     this.els.targetGrid.innerHTML = '';
     for (const target of Object.values(TARGET_TYPES)) {
+      const isSelected = target.id === this.engine.targetTypePreference;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `select-pill${target.id === this.engine.targetTypePreference ? ' is-selected' : ''}`;
+      btn.className = `select-pill${isSelected ? ' is-selected' : ''}`;
       btn.dataset.targetId = target.id;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(isSelected));
       btn.textContent = target.label;
       btn.addEventListener('click', () => {
         this.engine.setTargetType(target.id);
         this.els.targetGrid.querySelectorAll('.select-pill').forEach((el) => {
-          el.classList.toggle('is-selected', el.dataset.targetId === target.id);
+          const selected = el.dataset.targetId === target.id;
+          el.classList.toggle('is-selected', selected);
+          el.setAttribute('aria-checked', String(selected));
         });
       });
       this.els.targetGrid.appendChild(btn);
@@ -132,10 +143,13 @@ export class UIController {
     this.els.modeGrid.innerHTML = '';
     for (const mode of Object.values(GAME_MODES)) {
       const best = this.storage.getHighScore(mode.id);
+      const isSelected = mode.id === this.engine.mode.id;
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = `mode-card${mode.id === this.engine.mode.id ? ' is-selected' : ''}`;
+      card.className = `mode-card${isSelected ? ' is-selected' : ''}`;
       card.dataset.modeId = mode.id;
+      card.setAttribute('role', 'radio');
+      card.setAttribute('aria-checked', String(isSelected));
       card.innerHTML = `
         <div class="mode-card__top">
           <span class="mode-card__tag">${mode.tagline}</span>
@@ -156,7 +170,9 @@ export class UIController {
 
   _highlightSelectedMode(modeId) {
     this.els.modeGrid.querySelectorAll('.mode-card').forEach((card) => {
-      card.classList.toggle('is-selected', card.dataset.modeId === modeId);
+      const selected = card.dataset.modeId === modeId;
+      card.classList.toggle('is-selected', selected);
+      card.setAttribute('aria-checked', String(selected));
     });
   }
 
@@ -191,6 +207,7 @@ export class UIController {
     });
 
     this.els.restartFromPauseBtn.addEventListener('click', () => {
+      this.audio.unlock();
       this.engine.startGame(this.engine.mode.id);
     });
 
@@ -266,25 +283,37 @@ export class UIController {
     }
   }
 
+  _setTextIfChanged(key, el, text) {
+    if (this._lastHud[key] !== text) {
+      this._lastHud[key] = text;
+      el.textContent = text;
+    }
+  }
+
   _updateHud(hud) {
-    this.els.scoreValue.textContent = String(hud.score);
-    this.els.bestValue.textContent = String(Math.max(hud.score, hud.bestScore));
-    this.els.distanceValue.textContent = `${hud.distance}m`;
-    this.els.scopeDistance.textContent = `${hud.distance}m`;
-    this.els.scopeLastHit.textContent = hud.lastHitLabel || 'READY';
+    this._setTextIfChanged('score', this.els.scoreValue, String(hud.score));
+    this._setTextIfChanged('best', this.els.bestValue, String(Math.max(hud.score, hud.bestScore)));
+    this._setTextIfChanged('distance', this.els.distanceValue, `${hud.distance}m`);
+    this._setTextIfChanged('scopeDist', this.els.scopeDistance, `${hud.distance}m`);
+    this._setTextIfChanged('lastHit', this.els.scopeLastHit, hud.lastHitLabel || 'READY');
 
     if (hud.infiniteArrows) {
-      this.els.arrowsValue.textContent = '∞';
+      this._setTextIfChanged('arrows', this.els.arrowsValue, '∞');
       this.els.arrowsValue.classList.remove('is-low');
     } else {
-      this.els.arrowsValue.textContent = String(Math.max(0, hud.arrowsLeft));
+      const arrowsText = String(Math.max(0, hud.arrowsLeft));
+      this._setTextIfChanged('arrows', this.els.arrowsValue, arrowsText);
       this.els.arrowsValue.classList.toggle('is-low', hud.arrowsLeft <= 2);
     }
 
     // Time Attack timer
     if (hud.roundTimeRemaining !== null) {
       this.els.timerChip.classList.remove('is-hidden');
-      this.els.roundTimerValue.textContent = `${Math.ceil(hud.roundTimeRemaining)}s`;
+      this._setTextIfChanged(
+        'timer',
+        this.els.roundTimerValue,
+        `${Math.ceil(hud.roundTimeRemaining)}s`
+      );
       this.els.roundTimerValue.classList.toggle('is-low', hud.roundTimeRemaining <= 10);
     } else {
       this.els.timerChip.classList.add('is-hidden');
@@ -293,24 +322,32 @@ export class UIController {
     // Streak multiplier badge
     if (hud.streak >= 2) {
       this.els.streakBadge.classList.remove('is-hidden');
-      this.els.streakBadge.textContent =
+      const streakText =
         hud.comboMultiplier > 1
           ? `${hud.streak} STREAK • ${hud.comboMultiplier}x`
           : `${hud.streak} STREAK`;
+      this._setTextIfChanged('streak', this.els.streakBadge, streakText);
     } else {
       this.els.streakBadge.classList.add('is-hidden');
     }
 
     // Wind compass readout
     const windSpeed = Math.hypot(hud.wind.x, hud.wind.y);
-    this.els.windSpeed.textContent = `${windSpeed.toFixed(1)} m/s`;
+    this._setTextIfChanged('windSpeed', this.els.windSpeed, `${windSpeed.toFixed(1)} m/s`);
     if (windSpeed < 0.4) {
-      this.els.windDirLabel.textContent = 'CALM';
-      this.els.windNeedle.style.transform = 'rotate(0deg)';
+      this._setTextIfChanged('windDir', this.els.windDirLabel, 'CALM');
+      if (this._lastHud.windRot !== 'rotate(0deg)') {
+        this._lastHud.windRot = 'rotate(0deg)';
+        this.els.windNeedle.style.transform = 'rotate(0deg)';
+      }
     } else {
       const deg = (Math.atan2(-hud.wind.y, hud.wind.x) * 180) / Math.PI;
-      this.els.windNeedle.style.transform = `rotate(${deg}deg)`;
-      this.els.windDirLabel.textContent = hud.wind.x >= 0 ? 'RIGHT' : 'LEFT';
+      const rot = `rotate(${deg}deg)`;
+      if (this._lastHud.windRot !== rot) {
+        this._lastHud.windRot = rot;
+        this.els.windNeedle.style.transform = rot;
+      }
+      this._setTextIfChanged('windDir', this.els.windDirLabel, hud.wind.x >= 0 ? 'RIGHT' : 'LEFT');
     }
   }
 
@@ -354,10 +391,18 @@ export class UIController {
     el.className = `score-popup score-popup--${variant}`;
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
-    el.innerHTML = `
-      <span class="score-popup__main">${title}</span>
-      ${subtitle ? `<span class="score-popup__sub">${subtitle}</span>` : ''}
-    `;
+
+    const mainSpan = document.createElement('span');
+    mainSpan.className = 'score-popup__main';
+    mainSpan.textContent = title;
+    el.appendChild(mainSpan);
+
+    if (subtitle) {
+      const subSpan = document.createElement('span');
+      subSpan.className = 'score-popup__sub';
+      subSpan.textContent = subtitle;
+      el.appendChild(subSpan);
+    }
 
     this.els.popupLayer.appendChild(el);
     window.setTimeout(() => el.remove(), 1150);
