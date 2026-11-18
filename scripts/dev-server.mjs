@@ -27,12 +27,27 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  const urlPath = (req.url || '/').split('?')[0];
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Method Not Allowed');
+    return;
+  }
+
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Bad Request');
+    return;
+  }
+
   const relativePath = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
   const resolvedPath = path.resolve(ROOT_DIR, relativePath);
+  const relFromRoot = path.relative(ROOT_DIR, resolvedPath);
 
   // Prevent directory traversal outside ROOT_DIR
-  if (!resolvedPath.startsWith(ROOT_DIR)) {
+  if (relFromRoot.startsWith('..') || path.isAbsolute(relFromRoot)) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Forbidden');
     return;
@@ -50,7 +65,7 @@ const server = http.createServer((req, res) => {
       'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
     });
-    res.end(data);
+    res.end(req.method === 'HEAD' ? undefined : data);
   });
 });
 

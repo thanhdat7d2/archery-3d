@@ -38,4 +38,22 @@ describe('Target (3D Olympic Scoring)', () => {
     assert.notEqual(target.x, 0);
     assert.ok(Math.abs(target.x) <= target.railHalfSpan);
   });
+
+  it('uses archetype-specific hit labels and decays impact wobble over time', () => {
+    const fox = new Target({ distance: 25, radius: 1.25, type: 'fox' });
+    assert.equal(fox.evaluateHit(fox.x, fox.y).label, 'VITAL SHOT');
+
+    const robot = new Target({ distance: 25, radius: 1.25, type: 'robot' });
+    assert.equal(robot.evaluateHit(robot.x, robot.y).label, 'CORE HIT');
+
+    const mixedFallback = new Target({ distance: 25, radius: 1.25, type: 'mixed' });
+    assert.equal(mixedFallback.type, 'board');
+
+    fox.triggerImpact();
+    assert.equal(fox.hitWobble, 1.0);
+    fox.update(0.1);
+    assert.ok(fox.hitWobble < 1.0 && fox.hitWobble > 0);
+    fox.update(0.5);
+    assert.equal(fox.hitWobble, 0);
+  });
 });
